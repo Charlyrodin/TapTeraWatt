@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tap TeraWatt</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        @keyframes electric-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff; }
+            50% { transform: scale(1.15); box-shadow: 0 0 30px #ffff00, 0 0 60px #ffff00, 0 0 90px #ffff00; }
+            100% { transform: scale(1); box-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff; }
+        }
+        
+        @keyframes lightning-bolt {
+            0% { opacity: 0; transform: translateY(0px) rotate(0deg); }
+            25% { opacity: 1; transform: translateY(-20px) rotate(-5deg); }
+            50% { opacity: 1; transform: translateY(-40px) rotate(5deg); }
+            75% { opacity: 1; transform: translateY(-60px) rotate(-3deg); }
+            100% { opacity: 0; transform: translateY(-80px) rotate(0deg); }
+        }
+        
+        @keyframes electric-spark {
+            0% { opacity: 1; transform: scale(0) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.5) rotate(180deg); }
+            100% { opacity: 0; transform: scale(0) rotate(360deg); }
+        }
+        
+        @keyframes electric-border {
+            0% { border-color: #00ffff; box-shadow: 0 0 10px #00ffff; }
+            25% { border-color: #ffff00; box-shadow: 0 0 15px #ffff00; }
+            50% { border-color: #ff00ff; box-shadow: 0 0 20px #ff00ff; }
+            75% { border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
+            100% { border-color: #00ffff; box-shadow: 0 0 10px #00ffff; }
+        }
+        
+        @keyframes electric-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .tap-animation {
+            animation: electric-pulse 0.3s ease-out;
+        }
+        
+        .energy-particle {
+            animation: lightning-bolt 1.2s ease-out forwards;
+            position: absolute;
+            color: #00ffff;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1000;
+            text-shadow: 0 0 10px currentColor;
+        }
+        
+        .electric-glow {
+            box-shadow: 0 0 30px #00ffff, 0 0 60px #00ffff, inset 0 0 30px rgba(0, 255, 255, 0.2);
+            border: 2px solid #00ffff;
+            animation: electric-border 2s infinite;
+        }
+        
+        .electric-pulse {
+            animation: electric-pulse 1.5s infinite;
+        }
+        
+        .electric-bg {
+            background: linear-gradient(-45deg, #0a0a2e, #16213e, #0f3460, #533483);
+            background-size: 400% 400%;
+            animation: electric-bg 8s ease infinite;
+        }
+        
+        .lightning-text {
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff;
+            color: #00ffff;
+        }
+        
+        .electric-button {
+            background: linear-gradient(45deg, #00ffff, #ffff00, #00ffff);
+            background-size: 200% 200%;
+            animation: electric-bg 3s ease infinite;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.1);
+            border: 2px solid #00ffff;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .electric-button::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: rotate(45deg);
+            animation: electric-spark 2s infinite;
+        }
+        
+        .electric-modal {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+        }
+        
+        .electric-stat {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="electric-bg min-h-screen text-white">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="flex items-center justify-center min-h-screen p-4">
+        <div class="electric-modal p-8 rounded-2xl backdrop-blur-sm max-w-md w-full">
+            <div class="text-center mb-8">
+                <h1 class="text-5xl font-bold lightning-text mb-4 electric-pulse">⚡ TAP TERAWATT ⚡</h1>
+                <p class="text-cyan-300 text-lg">¡Genera energía eléctrica con cada tap!</p>
+                <div class="text-yellow-400 text-sm mt-2">🔋 Carga tu poder eléctrico 🔋</div>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="text" id="username" placeholder="⚡ Nombre de usuario" 
+                       class="w-full p-3 bg-black bg-opacity-70 rounded-lg border-2 border-cyan-500 focus:border-yellow-400 focus:outline-none text-cyan-100 placeholder-cyan-400">
+                <input type="email" id="email" placeholder="📧 Email eléctrico" 
+                       class="w-full p-3 bg-black bg-opacity-70 rounded-lg border-2 border-cyan-500 focus:border-yellow-400 focus:outline-none text-cyan-100 placeholder-cyan-400">
+                <input type="text" id="referralCode" placeholder="🔗 Código de referido (opcional)" 
+                       class="w-full p-3 bg-black bg-opacity-70 rounded-lg border-2 border-cyan-500 focus:border-yellow-400 focus:outline-none text-cyan-100 placeholder-cyan-400">
+                <button onclick="register()" 
+                        class="w-full electric-button text-black font-bold py-4 rounded-lg transition-all duration-300 text-lg">
+                    ⚡ ACTIVAR PODER ELÉCTRICO ⚡
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="gameScreen" class="hidden">
+        <!-- Header -->
+        <div class="electric-stat p-4 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <div class="text-center electric-stat p-3 rounded-lg">
+                    <div class="text-2xl font-bold lightning-text" id="playerTaps">0</div>
+                    <div class="text-xs text-cyan-300">⚡ miliWatts</div>
+                </div>
+                <div class="text-center electric-stat p-3 rounded-lg">
+                    <div class="text-lg font-bold text-yellow-400" id="dailyLimit">100,000</div>
+                    <div class="text-xs text-cyan-300">🔋 Límite diario</div>
+                </div>
+            </div>
+            
+            <div class="flex space-x-2">
+                <button onclick="showLeaderboard()" class="electric-stat px-3 py-2 rounded-lg text-sm font-bold text-cyan-300 hover:text-yellow-400 transition-colors">
+                    🏆 Ranking
+                </button>
+                <button onclick="showShop()" class="electric-stat px-3 py-2 rounded-lg text-sm font-bold text-cyan-300 hover:text-yellow-400 transition-colors">
+                    ⚡ Tienda
+                </button>
+                <button onclick="showReferrals()" class="electric-stat px-3 py-2 rounded-lg text-sm font-bold text-cyan-300 hover:text-yellow-400 transition-colors">
+                    🔗 Referidos
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Stats -->
+        <div class="electric-stat p-4 text-center m-4 rounded-xl">
+            <div class="text-lg lightning-text">🌍 RED ELÉCTRICA GLOBAL ⚡</div>
+            <div class="text-4xl font-bold lightning-text electric-pulse" id="globalTaps">0</div>
+            <div class="text-sm text-cyan-300">⚡ Generadores activos: <span id="activePlayers" class="text-yellow-400 font-bold">1</span> ⚡</div>
+        </div>
+
+        <!-- Main Tap Area -->
+        <div class="flex-1 flex items-center justify-center p-8 relative" style="min-height: 60vh;">
+            <button id="tapButton" onclick="tap()" 
+                    class="w-72 h-72 electric-glow rounded-full flex items-center justify-center text-8xl transition-all duration-200 relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 rounded-full"></div>
+                <div class="relative z-10 text-yellow-300 drop-shadow-lg">⚡</div>
+                <div class="absolute inset-0 bg-gradient-to-br from-transparent via-white to-transparent opacity-20 rounded-full"></div>
+            </button>
+        </div>
+
+        <!-- Bottom Stats -->
+        <div class="electric-stat p-4 grid grid-cols-3 gap-4 text-center m-4 rounded-xl">
+            <div class="electric-stat p-3 rounded-lg">
+                <div class="text-lg font-bold text-cyan-400" id="referralTaps">0</div>
+                <div class="text-xs text-cyan-300">🔗 Red de Referidos</div>
+            </div>
+            <div class="electric-stat p-3 rounded-lg">
+                <div class="text-lg font-bold text-purple-400" id="autoTaps">0</div>
+                <div class="text-xs text-cyan-300">⚙️ Auto-Generadores</div>
+            </div>
+            <div class="electric-stat p-3 rounded-lg">
+                <div class="text-lg font-bold lightning-text electric-pulse">TWC</div>
+                <div class="text-xs text-cyan-300">💎 TeraWatt Coin</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div id="leaderboardModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="electric-modal rounded-2xl p-6 max-w-md w-full max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold lightning-text">🏆 RANKING ELÉCTRICO ⚡</h2>
+                <button onclick="hideLeaderboard()" class="text-cyan-400 hover:text-yellow-400 text-3xl font-bold">&times;</button>
+            </div>
+            <div id="leaderboardList" class="space-y-2">
+                <!-- Leaderboard entries will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Shop Modal -->
+    <div id="shopModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="electric-modal rounded-2xl p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold lightning-text">⚡ CENTRAL ELÉCTRICA ⚡</h2>
+                <button onclick="hideShop()" class="text-cyan-400 hover:text-yellow-400 text-3xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div class="electric-stat p-4 rounded-lg">
+                    <h3 class="text-lg font-bold lightning-text">⚙️ DINAMO ELÉCTRICO</h3>
+                    <p class="text-sm text-cyan-300">⚡ 10,000 voltios automáticos/día</p>
+                    <p class="text-yellow-400 font-bold text-lg">💰 $10 USD (anual)</p>
+                    <button onclick="buyGenerator('dinamo')" class="w-full electric-button text-black font-bold py-2 rounded-lg mt-2">
+                        🔋 ACTIVAR DINAMO
+                    </button>
+                </div>
+                <div class="electric-stat p-4 rounded-lg">
+                    <h3 class="text-lg font-bold lightning-text">🔄 ALTERNADOR TURBO</h3>
+                    <p class="text-sm text-cyan-300">⚡ 30,000 voltios automáticos/día</p>
+                    <p class="text-yellow-400 font-bold text-lg">💰 $20 USD (anual)</p>
+                    <button onclick="buyGenerator('alternador')" class="w-full electric-button text-black font-bold py-2 rounded-lg mt-2">
+                        🔋 ACTIVAR ALTERNADOR
+                    </button>
+                </div>
+                <div class="electric-stat p-4 rounded-lg">
+                    <h3 class="text-lg font-bold lightning-text">⚡ REACTOR NUCLEAR</h3>
+                    <p class="text-sm text-cyan-300">⚡ 100,000 voltios automáticos/día</p>
+                    <p class="text-yellow-400 font-bold text-lg">💰 $50 USD (anual)</p>
+                    <button onclick="buyGenerator('ultra')" class="w-full electric-button text-black font-bold py-2 rounded-lg mt-2">
+                        🔋 ACTIVAR REACTOR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Referrals Modal -->
+    <div id="referralsModal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div class="electric-modal rounded-2xl p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold lightning-text">🔗 RED ELÉCTRICA 🔗</h2>
+                <button onclick="hideReferrals()" class="text-cyan-400 hover:text-yellow-400 text-3xl font-bold">&times;</button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="electric-stat p-4 rounded-lg">
+                    <h3 class="text-lg font-bold lightning-text mb-2">⚡ TU CÓDIGO ELÉCTRICO</h3>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="myReferralCode" readonly 
+                               class="flex-1 bg-black bg-opacity-70 p-2 rounded border-2 border-cyan-500 text-center font-mono text-yellow-400 font-bold">
+                        <button onclick="copyReferralCode()" class="electric-button px-3 py-2 rounded font-bold">
+                            📋 COPIAR
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="electric-stat p-4 rounded-lg">
+                    <h3 class="text-lg font-bold lightning-text mb-2">🔗 TU RED ELÉCTRICA</h3>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold lightning-text electric-pulse" id="referralCount">0</div>
+                        <div class="text-sm text-cyan-300">⚡ Conexiones activas</div>
+                    </div>
+                    <div class="mt-2">
+                        <div class="text-2xl font-bold text-yellow-400" id="referralBonus">0</div>
+                        <div class="text-sm text-cyan-300">🔋 Bonus eléctrico (10%)</div>
+                    </div>
+                </div>
+                
+                <div id="referralsList" class="space-y-2">
+                    <!-- Referrals list will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="index.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a4764ab265038d',t:'MTc1NzA2MjA0OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
